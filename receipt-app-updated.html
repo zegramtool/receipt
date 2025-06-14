@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="領収書アプリ">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>領収書発行アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            margin: 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-height: calc(100vh - 20px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #4facfe;
+            border-bottom: 3px solid #4facfe;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .form-group select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .amount-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .amount-group input {
+            flex: 1;
+        }
+
+        .currency {
+            background: #e9ecef;
+            border: 2px solid #e1e5e9;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: #495057;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .shipping-toggle {
+            margin-bottom: 10px;
+        }
+
+        .toggle-btn {
+            padding: 12px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+            color: #495057;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            width: 100%;
+        }
+
+        .toggle-btn:hover {
+            background: #e9ecef;
+        }
+
+        .toggle-btn.active {
+            background: #4facfe;
+            color: white;
+            border-color: #4facfe;
+        }
+
+        .toggle-btn.active:hover {
+            background: #2196f3;
+        }
+
+        .shipping-input {
+            margin-top: 10px;
+        }
+
+        .tax-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .tax-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .generate-btn, .save-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .save-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .generate-btn:hover, .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .issuer-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .issuer-item {
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .issuer-info {
+            flex: 1;
+        }
+
+        .issuer-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .issuer-details {
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
+        .receipt-preview {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .receipt {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+
+        .receipt-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #333;
+            border-bottom: 3px solid #333;
+            padding-bottom: 15px;
+        }
+
+        .receipt-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .receipt-info {
+            margin-bottom: 25px;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+
+        .receipt-row.border-top {
+            border-top: 1px solid #333;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .receipt-row.total {
+            border-top: 2px solid #333;
+            padding-top: 15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .customer-section {
+            border: 2px solid #333;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .print-btn {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .print-btn:active {
+            background: #138496;
+        }
+
+        .new-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.15);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+            
+            .container {
+                border-radius: 10px;
+                min-height: calc(100vh - 10px);
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .tab-content {
+                padding: 20px 15px;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .form-group input, .form-group textarea, .form-group select {
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            .receipt {
+                padding: 20px;
+                font-size: 12px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+            
+            body * {
+                visibility: hidden;
+            }
+            
+            .receipt-preview, 
+            .receipt-preview * {
+                visibility: visible;
+            }
+            
+            .container {
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .header,
+            .tab-buttons,
+            .form-group,
+            .generate-btn,
+            .action-buttons,
+            form {
+                display: none !important;
+            }
+            
+            .receipt-preview {
+                display: block !important;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+                border: none;
+                background: white;
+            }
+            
+            .receipt {
+                width: 210mm;
+                min-height: 297mm;
+                margin: 0 auto;
+                padding: 20mm;
+                box-sizing: border-box;
+                box-shadow: none;
+                border-radius: 0;
+                background: white;
+                font-size: 12pt;
+            }
+        }
+
+        .storage-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #856404;
+        }
+
+        .storage-notice strong {
+            color: #533f03;
+        }
+
+        .invoice-number {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .today-date {
+            color: #6c757d;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 領収書発行システム</h1>
+            <p>インボイス対応・消費税自動計算</p>
+        </div>
+
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('receipt')">領収書作成</button>
+            <button class="tab-btn" onclick="switchTab('issuer')">発行者管理</button>
+        </div>
+
+        <!-- 領収書作成タブ -->
+        <div id="receiptTab" class="tab-content active">
+            <form id="receiptForm">
+                <div class="form-group">
+                    <label for="receiptNumber">領収書番号</label>
+                    <input type="text" id="receiptNumber" placeholder="例: R-2024-001" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="date">発行日</label>
+                    <input type="date" id="date" required>
+                    <div class="today-date">今日の日付: <span id="todayDate"></span></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="issuerSelect">発行者選択</label>
+                    <select id="issuerSelect" required>
+                        <option value="">発行者を選択してください</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="customerName">宛先</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="customerName" placeholder="例: 田中太郎" required style="flex:1;">
+                        <select id="customerType" style="width: 80px;">
+                            <option value="様">様</option>
+                            <option value="御中">御中</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">商品計（税込）</label>
+                    <div class="amount-group">
+                        <input type="number" id="amount" placeholder="1250" min="0" required oninput="calculateTax()">
+                        <div class="currency">円</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>送料設定</label>
+                    <div class="shipping-toggle">
+                        <button type="button" id="shippingToggle" class="toggle-btn" onclick="toggleShipping()">
+                            <span id="toggleText">送料なし</span>
+                        </button>
+                    </div>
+                    <div id="shippingInput" class="shipping-input" style="display: none;">
+                        <div class="amount-group">
+                            <input type="number" id="shipping" placeholder="0" min="0" value="0" oninput="calculateTax()">
+                            <div class="currency">円</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tax-info" id="taxInfo">
+                    <div class="tax-row">
+                        <span>商品計（税込）:</span>
+                        <span id="productTotal">¥0</span>
+                    </div>
+                    <div class="tax-row">
+                        <span>消費税:</span>
+                        <span id="taxAmount">¥0</span>
+                    </div>
+                    <div class="tax-row" id="shippingRow" style="display: none;">
+                        <span>送料:</span>
+                        <span id="shippingFee">¥0</span>
+                    </div>
+                    <div class="tax-row">
+                        <span><strong>合計金額:</strong></span>
+                        <span id="totalAmount"><strong>¥0</strong></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">但し書き</label>
+                    <input type="text" id="description" placeholder="例: お品代として" value="お品代として" required>
+                </div>
+
+                <button type="submit" class="generate-btn">📄 領収書を作成</button>
+            </form>
+
+            <div id="receiptPreview" class="receipt-preview">
+                <div class="receipt" id="receiptContent">
+                    <!-- 領収書内容がここに表示されます -->
+                </div>
+                <div class="action-buttons">
+                    <button class="action-btn pdf-btn" onclick="createPDF()" style="background: #28a745; color: white;">📄 PDF作成</button>
+                    <button class="action-btn new-btn" onclick="createNew()">📝 新規作成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 発行者管理タブ -->
+        <div id="issuerTab" class="tab-content">
+            <div class="storage-notice">
+                <strong>⚠️ データ保存について</strong><br>
+                このアプリでは発行者情報はセッション中のみ保持されます。ページを再読み込みすると初期データに戻ります。
+            </div>
+            
+            <form id="issuerForm">
+                <div class="form-group">
+                    <label for="issuerName">発行者名</label>
+                    <input type="text" id="issuerName" placeholder="例: 株式会社サンプル" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="issuerAddress">住所</label>
+                    <textarea id="issuerAddress" placeholder="例: 〒100-0001 東京都千代田区千代田1-1-1" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="issuerPhone">電話番号</label>
+                    <input type="tel" id="issuerPhone" placeholder="例: 03-1234-5678">
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceNumber">インボイス登録番号</label>
+                    <input type="text" id="invoiceNumber" placeholder="例: T1234567890123" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="hankoImageFile">電子印鑑画像（アップロード）</label>
+                    <input type="file" id="hankoImageFile" accept="image/*">
+                </div>
+
+                <button type="submit" class="save-btn">💾 発行者を保存</button>
+            </form>
+
+            <div class="form-group" style="margin-top: 30px;">
+                <label>登録済み発行者一覧</label>
+                <div class="issuer-list" id="issuerList">
+                    <!-- 発行者リストがここに表示されます -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
