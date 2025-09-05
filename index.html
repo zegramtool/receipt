@@ -7,6 +7,33 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="領収書アプリ">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#4facfe">
+    <meta name="description" content="インボイス対応・消費税自動計算の領収書発行アプリ">
+    
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://accounts.google.com;
+        connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://firestore.googleapis.com;
+        frame-src 'self' https://accounts.google.com https://*.firebaseapp.com;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https: http:;
+        font-src 'self' data:;
+    ">
+    
+    <!-- PWA マニフェスト -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS用アイコン -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167x167.png">
+    
+    <!-- Android用アイコン -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    
     <title>領収書発行アプリ</title>
     <style>
         * {
@@ -484,6 +511,59 @@
                 background: white;
                 font-size: 12pt;
             }
+            
+            .hanko-img {
+                position: absolute !important;
+                left: 80% !important;
+                bottom: -18px !important;
+                width: 80px !important;
+                height: 80px !important;
+                object-fit: contain !important;
+                opacity: 0.85 !important;
+                pointer-events: none !important;
+                visibility: visible !important;
+            }
+            
+            .inshi-fuyou {
+                width: 52px !important;
+                height: 52px !important;
+                border: 2px solid #333 !important;
+                padding: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: white !important;
+                visibility: visible !important;
+            }
+            
+            .inshi-text {
+                font-size: 8px !important;
+                margin: 0 !important;
+                line-height: 1.05 !important;
+                text-align: center !important;
+                visibility: visible !important;
+            }
+            
+            .inshi-main {
+                font-size: 11px !important;
+                font-weight: bold !important;
+                margin: 0 !important;
+                text-align: center !important;
+                visibility: visible !important;
+            }
+            
+            /* 印刷時のフッター・ヘッダーを非表示 */
+            @page {
+                margin: 0;
+                size: A4;
+            }
+            
+            /* ブラウザのフッター・ヘッダーを非表示 */
+            html, body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
 
         .storage-notice {
@@ -500,6 +580,112 @@
             color: #533f03;
         }
 
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 10px 0;
+            user-select: none;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            cursor: pointer;
+            -webkit-appearance: auto;
+            -moz-appearance: auto;
+            appearance: auto;
+            opacity: 1;
+            visibility: visible;
+            display: inline-block;
+            border: 2px solid #4facfe;
+            border-radius: 3px;
+            background: white;
+            position: relative;
+        }
+
+        .checkbox-group input[type="checkbox"]:checked {
+            background: #4facfe;
+            border-color: #4facfe;
+        }
+
+        .checkbox-group input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .checkbox-group span {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .history-item {
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .history-info {
+            flex: 1;
+        }
+
+        .history-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .history-details {
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .history-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .view-btn {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .delete-history-btn {
+            background: #dc3545;
+            color: white;
+        }
+
         .invoice-number {
             font-size: 12px;
             color: #666;
@@ -511,6 +697,136 @@
             font-size: 12px;
             margin-top: 5px;
         }
+
+        /* 発行者管理画面のスタイル */
+        .form-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .form-section h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .issuer-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .issuer-info {
+            flex: 1;
+        }
+        
+        .issuer-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .issuer-details {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .issuer-details span {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        
+        .issuer-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .hanko-preview {
+            margin-top: 8px;
+        }
+        
+        .hanko-preview img {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        .receipt-preview {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .receipt-preview h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .receipt-content {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        .login-btn {
+            background: #4285f4;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+        
+        .login-btn:hover {
+            background: #3367d6;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
     </style>
 </head>
 <body>
@@ -518,15 +834,36 @@
         <div class="header">
             <h1>📄 領収書発行システム</h1>
             <p>インボイス対応・消費税自動計算</p>
+            <div id="userInfo" style="display: none; align-items: center; gap: 10px;">
+                <img id="userPhoto" src="" alt="ユーザー写真" style="width: 32px; height: 32px; border-radius: 50%;">
+                <span id="userName" style="color: white; font-size: 14px;"></span>
+                <button id="logoutBtn" class="logout-btn" onclick="signOutUser()">ログアウト</button>
+            </div>
+            <div id="loginButton" style="display: block;">
+                <button id="loginBtn" class="login-btn" onclick="signInWithGoogle()">
+                    🔐 Googleでログイン
+                </button>
+            </div>
+            <div id="installButton" style="display: none; margin-top: 10px;">
+                <button id="installBtn" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; cursor: pointer;">
+                    📱 ホーム画面に追加
+                </button>
+            </div>
+        </div>
+
+        <div id="offlineMessage" style="display: none; background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px; border-radius: 8px; text-align: center; font-size: 14px;">
+            📶 オフラインモードで動作中
         </div>
 
         <div class="tab-buttons">
-            <button class="tab-btn active" onclick="switchTab('receipt')">領収書作成</button>
-            <button class="tab-btn" onclick="switchTab('issuer')">発行者管理</button>
+            <button class="tab-btn active" onclick="switchTab('receipt')">📄 領収書作成</button>
+            <button class="tab-btn" onclick="switchTab('issuer')">🏢 発行者管理</button>
+            <button class="tab-btn" onclick="switchTab('history')">📋 領収書発行履歴</button>
         </div>
 
         <!-- 領収書作成タブ -->
         <div id="receiptTab" class="tab-content active">
+            <h2>📄 領収書作成</h2>
             <form id="receiptForm">
                 <div class="form-group">
                     <label for="receiptNumber">領収書番号</label>
@@ -548,7 +885,7 @@
 
                 <div class="form-group">
                     <label for="customerName">宛先</label>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
                         <input type="text" id="customerName" placeholder="例: 田中太郎" required style="flex:1;">
                         <select id="customerType" style="width: 80px;">
                             <option value="様">様</option>
@@ -565,38 +902,27 @@
                     </div>
                 </div>
 
+                <!-- 電子領収書チェックボックス -->
                 <div class="form-group">
-                    <label>送料設定</label>
-                    <div class="shipping-toggle">
-                        <button type="button" id="shippingToggle" class="toggle-btn" onclick="toggleShipping()">
-                            <span id="toggleText">送料なし</span>
-                        </button>
-                    </div>
-                    <div id="shippingInput" class="shipping-input" style="display: none;">
-                        <div class="amount-group">
-                            <input type="number" id="shipping" placeholder="0" min="0" value="0" oninput="calculateTax()">
-                            <div class="currency">円</div>
-                        </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="isElectronicReceipt" onchange="toggleStampDuty()">
+                        <span>電子領収書（印紙税不要）</span>
                     </div>
                 </div>
 
-                <div class="tax-info" id="taxInfo">
-                    <div class="tax-row">
-                        <span>商品計（税込）:</span>
-                        <span id="productTotal">¥0</span>
-                    </div>
-                    <div class="tax-row">
-                        <span>消費税:</span>
-                        <span id="taxAmount">¥0</span>
-                    </div>
-                    <div class="tax-row" id="shippingRow" style="display: none;">
-                        <span>送料:</span>
-                        <span id="shippingFee">¥0</span>
-                    </div>
-                    <div class="tax-row">
-                        <span><strong>合計金額:</strong></span>
-                        <span id="totalAmount"><strong>¥0</strong></span>
-                    </div>
+
+                <!-- 消費税率選択 -->
+                <div class="form-group">
+                    <label for="taxRate">消費税率</label>
+                    <select id="taxRate" onchange="calculateTax()">
+                        <option value="0.08">8%</option>
+                        <option value="0.10" selected>10%</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceNumber">インボイス登録番号</label>
+                    <input type="text" id="invoiceNumber" placeholder="例: T1234567890123">
                 </div>
 
                 <div class="form-group">
@@ -604,59 +930,101 @@
                     <input type="text" id="description" placeholder="例: お品代として" value="お品代として" required>
                 </div>
 
-                <button type="submit" class="generate-btn">📄 領収書を作成</button>
+                <div class="tax-info" id="taxInfo">
+                    <div class="tax-row">
+                        <span>商品計：</span>
+                        <span id="productTotal">¥0</span>
+                    </div>
+                    <div class="tax-row">
+                        <span>消費税：</span>
+                        <span id="taxAmount">¥0</span>
+                    </div>
+                    <div class="tax-row total">
+                        <span>合計：</span>
+                        <span id="totalAmount">¥0</span>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="action-btn">📄 領収書作成</button>
+                    <button type="button" class="action-btn" onclick="createNew()" style="background: #6c757d;">🆕 新規作成</button>
+                </div>
             </form>
 
-            <div id="receiptPreview" class="receipt-preview">
-                <div class="receipt" id="receiptContent">
-                    <!-- 領収書内容がここに表示されます -->
+            <!-- 領収書プレビュー -->
+            <div id="receiptPreview" class="receipt-preview" style="display: none;">
+                <h2>📄 領収書プレビュー</h2>
+                <div class="receipt-content" id="receiptContent">
+                    <!-- 領収書がここに表示されます -->
                 </div>
-                <div class="action-buttons">
-                    <button class="action-btn pdf-btn" onclick="createPDF()" style="background: #28a745; color: white;">📄 PDF作成</button>
-                    <button class="action-btn new-btn" onclick="createNew()">📝 新規作成</button>
+                <div class="preview-actions">
+                    <button class="action-btn" onclick="printReceipt()">🖨️ PDF印刷</button>
+                    <button class="action-btn" onclick="createNew()" style="background: #6c757d;">🆕 新規作成</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- 履歴タブ -->
+        <div id="historyTab" class="tab-content">
+            <h2>📋 領収書発行履歴</h2>
+            <div class="history-controls" style="margin-bottom: 20px;">
+                <button class="action-btn" onclick="clearHistory()" style="background: #dc3545; color: white; margin-right: 10px;">🗑️ 履歴をクリア</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- 履歴がここに表示されます -->
             </div>
         </div>
 
         <!-- 発行者管理タブ -->
         <div id="issuerTab" class="tab-content">
+            <h2>🏢 発行者管理</h2>
             <div class="storage-notice">
-                <strong>⚠️ データ保存について</strong><br>
-                このアプリでは発行者情報はセッション中のみ保持されます。ページを再読み込みすると初期データに戻ります。
+                <strong>💾 データ保存について</strong><br>
+                データは端末のLocalStorageに保存されます。ブラウザのキャッシュを削除するとデータが消去されます。<br>
+                複数の端末やブラウザ間でのデータ共有はできません。重要なデータは定期的にバックアップしてください。
             </div>
             
-            <form id="issuerForm">
-                <div class="form-group">
-                    <label for="issuerName">発行者名</label>
-                    <input type="text" id="issuerName" placeholder="例: 株式会社サンプル" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="issuerAddress">住所</label>
-                    <textarea id="issuerAddress" placeholder="例: 〒100-0001 東京都千代田区千代田1-1-1" required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="issuerPhone">電話番号</label>
-                    <input type="tel" id="issuerPhone" placeholder="例: 03-1234-5678">
-                </div>
-
-                <div class="form-group">
-                    <label for="invoiceNumber">インボイス登録番号</label>
-                    <input type="text" id="invoiceNumber" placeholder="例: T1234567890123" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="hankoImageFile">電子印鑑画像（アップロード）</label>
-                    <input type="file" id="hankoImageFile" accept="image/*">
-                </div>
-
-                <button type="submit" class="save-btn">💾 発行者を保存</button>
-            </form>
-
-            <div class="form-group" style="margin-top: 30px;">
-                <label>登録済み発行者一覧</label>
-                <div class="issuer-list" id="issuerList">
+            <!-- 発行者登録フォーム -->
+            <div class="form-section">
+                <h3>発行者登録・編集</h3>
+                <form id="issuerForm">
+                    <input type="hidden" id="editingIssuerIndex" value="-1">
+                    <div class="form-group">
+                        <label for="issuerName">発行者名</label>
+                        <input type="text" id="issuerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="issuerPostalCode">郵便番号</label>
+                        <input type="text" id="issuerPostalCode" pattern="\d{3}-?\d{4}" placeholder="例: 123-4567" onblur="searchAddress()">
+                        <small style="color: #666; font-size: 12px;">郵便番号を入力すると住所が自動入力されます</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="issuerAddress">住所</label>
+                        <textarea id="issuerAddress" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="issuerPhone">電話番号</label>
+                        <input type="text" id="issuerPhone" placeholder="例: 03-1234-5678">
+                    </div>
+                    <div class="form-group">
+                        <label for="issuerInvoiceNumber">インボイス登録番号</label>
+                        <input type="text" id="issuerInvoiceNumber" placeholder="例: T1234567890123">
+                    </div>
+                    <div class="form-group">
+                        <label for="hankoImageFile">印影画像</label>
+                        <input type="file" id="hankoImageFile" accept="image/*">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="action-btn">💾 保存</button>
+                        <button type="button" class="action-btn" onclick="cancelEdit()" style="background: #6c757d;">❌ キャンセル</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 発行者一覧 -->
+            <div class="form-section">
+                <h3>登録済み発行者一覧</h3>
+                <div id="issuerList">
                     <!-- 発行者リストがここに表示されます -->
                 </div>
             </div>
@@ -664,5 +1032,85 @@
     </div>
 
     <script src="main.js"></script>
+    
+    <!-- ローカルストレージ版（Firebase削除済み） -->
+    <script>
+        console.log('アプリバージョン: 3.0.0 - ローカルストレージ版（Firebase削除）');
+        console.log('完全にローカルストレージで動作します');
+    </script>
+    
+    <!-- PWA インストール機能 -->
+    <script>
+        let deferredPrompt;
+        
+        // インストール可能になった時の処理
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installButton').style.display = 'block';
+        });
+        
+        // インストールボタンクリック時の処理
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('PWA installed');
+                    document.getElementById('installButton').style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+        
+        // インストール完了時の処理
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('installButton').style.display = 'none';
+            deferredPrompt = null;
+        });
+        
+        // オフライン/オンライン状態の監視
+        window.addEventListener('online', () => {
+            document.getElementById('offlineMessage').style.display = 'none';
+        });
+        
+        window.addEventListener('offline', () => {
+            document.getElementById('offlineMessage').style.display = 'block';
+        });
+        
+        // 初期状態の確認
+        if (!navigator.onLine) {
+            document.getElementById('offlineMessage').style.display = 'block';
+        }
+    </script>
+    
+    <!-- Service Workerを削除 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    // 既存のService Workerをすべて削除
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        console.log('SW削除中:', registration);
+                        await registration.unregister();
+                    }
+                    
+                    // キャッシュも削除
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        for (let cacheName of cacheNames) {
+                            console.log('キャッシュ削除中:', cacheName);
+                            await caches.delete(cacheName);
+                        }
+                    }
+                    
+                    console.log('Service Workerとキャッシュを完全に削除しました');
+                } catch (error) {
+                    console.error('Service Worker削除エラー:', error);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
