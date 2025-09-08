@@ -25,6 +25,7 @@ class _ReceiptCreateScreenState extends State<ReceiptCreateScreen> {
   Issuer? _selectedIssuer;
   String _customerType = '様';
   bool _isElectronicReceipt = true;
+  double _taxRate = 0.10; // 8% or 10%
   double _totalAmount = 0;
   double _taxAmount = 0;
   double _totalWithTax = 0;
@@ -77,7 +78,7 @@ class _ReceiptCreateScreenState extends State<ReceiptCreateScreen> {
     
     setState(() {
       _totalAmount = productAmount + shippingAmount;
-      _taxAmount = (_totalAmount * 0.1).roundToDouble();
+      _taxAmount = (_totalAmount * _taxRate).roundToDouble();
       _totalWithTax = _totalAmount + _taxAmount;
       
       // 印紙税計算
@@ -116,6 +117,7 @@ class _ReceiptCreateScreenState extends State<ReceiptCreateScreen> {
       invoiceNumber: _invoiceNumberController.text.trim().isNotEmpty
           ? _invoiceNumberController.text.trim()
           : null,
+      taxRate: _taxRate,
       timestamp: now,
       date: now,
     );
@@ -349,6 +351,25 @@ class _ReceiptCreateScreenState extends State<ReceiptCreateScreen> {
                       '計算結果',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('消費税率'),
+                        const SizedBox(width: 12),
+                        DropdownButton<double>(
+                          value: _taxRate,
+                          items: const [
+                            DropdownMenuItem(value: 0.08, child: Text('8%')),
+                            DropdownMenuItem(value: 0.10, child: Text('10%')),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _taxRate = v);
+                            _calculateTax();
+                          },
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -366,7 +387,7 @@ class _ReceiptCreateScreenState extends State<ReceiptCreateScreen> {
                     ),
                     const SizedBox(height: 8),
                     _buildAmountRow('小計', _totalAmount),
-                    _buildAmountRow('消費税（10%）', _taxAmount),
+                    _buildAmountRow('消費税（${(_taxRate * 100).toStringAsFixed(0)}%）', _taxAmount),
                     _buildAmountRow('合計', _totalWithTax),
                     if (_stampDuty > 0) _buildAmountRow('印紙税', _stampDuty),
                   ],

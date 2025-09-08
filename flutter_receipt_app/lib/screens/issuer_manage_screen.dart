@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io' as io;
 import 'package:flutter/services.dart';
 import '../models/issuer.dart';
 import '../services/storage_service.dart';
@@ -187,16 +188,7 @@ class _IssuerManageScreenState extends State<IssuerManageScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               contentPadding: const EdgeInsets.all(16),
-              leading: CircleAvatar(
-                backgroundColor: Theme.of(context).primaryColor,
-                child: Text(
-                  issuer.name.isNotEmpty ? issuer.name[0] : '?',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              leading: _buildLeadingAvatar(issuer),
               title: Text(
                 issuer.name,
                 style: const TextStyle(
@@ -268,6 +260,29 @@ class _IssuerManageScreenState extends State<IssuerManageScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildLeadingAvatar(Issuer issuer) {
+    final path = issuer.hankoImagePath;
+    if (path != null && path.isNotEmpty) {
+      ImageProvider? img;
+      if (path.startsWith('assets/')) {
+        img = AssetImage(path);
+      } else {
+        img = FileImage(io.File(path));
+      }
+      return CircleAvatar(
+        backgroundImage: img,
+        backgroundColor: Colors.transparent,
+      );
+    }
+    return CircleAvatar(
+      backgroundColor: Theme.of(context).primaryColor,
+      child: Text(
+        issuer.name.isNotEmpty ? issuer.name[0] : '?',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
   }

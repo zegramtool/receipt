@@ -4,6 +4,8 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../models/receipt.dart';
 import 'package:flutter/services.dart' show rootBundle; // for asset fallback if needed
+import 'dart:io' as io;
+import 'dart:typed_data';
 
 class PdfService {
   static Future<void> generateReceipt(Receipt receipt) async {
@@ -18,9 +20,17 @@ class PdfService {
     final hankoPath = receipt.issuer.hankoImagePath;
     if (hankoPath != null && hankoPath.isNotEmpty) {
       try {
-        hankoImage = await imageFromAssetBundle(hankoPath);
+        if (hankoPath.startsWith('assets/')) {
+          hankoImage = await imageFromAssetBundle(hankoPath);
+        } else {
+          final file = io.File(hankoPath);
+          if (await file.exists()) {
+            final Uint8List bytes = await file.readAsBytes();
+            hankoImage = pw.MemoryImage(bytes);
+          }
+        }
       } catch (_) {
-        // asset 未配置等は無視
+        // 読み込み失敗は無視
       }
     }
 
@@ -62,7 +72,7 @@ class PdfService {
           final amountRows = pw.Column(
             children: [
               _kvRow('小計', _yen(subtotal), labelStyle, valueStyle),
-              _kvRow('消費税（10%）', _yen(tax), labelStyle, valueStyle),
+              _kvRow('消費税（${(receipt.taxRate * 100).toInt()}%）', _yen(tax), labelStyle, valueStyle),
               _kvRow('合計', _yen(total), labelStyle.copyWith(font: boldFont, fontSize: 12), valueStyle.copyWith(fontSize: 12)),
             ],
           );

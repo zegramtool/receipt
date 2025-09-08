@@ -11,6 +11,8 @@ class Receipt {
   final Issuer issuer;
   // 画面で上書きされたインボイス番号（指定があればこちらを優先）
   final String? invoiceNumber;
+  // 消費税率（例: 0.10, 0.08）
+  final double taxRate;
   final DateTime timestamp;
   final DateTime date;
 
@@ -24,6 +26,7 @@ class Receipt {
     required this.isElectronicReceipt,
     required this.issuer,
     this.invoiceNumber,
+    this.taxRate = 0.10,
     required this.timestamp,
     required this.date,
   });
@@ -31,10 +34,7 @@ class Receipt {
   // 計算プロパティ
   double get totalAmount => productAmount + shippingAmount;
   
-  double get taxAmount {
-    const double taxRate = 0.1; // 10%消費税
-    return (totalAmount * taxRate).roundToDouble();
-  }
+  double get taxAmount => (totalAmount * taxRate).roundToDouble();
   
   double get totalWithTax => totalAmount + taxAmount;
   
@@ -65,6 +65,7 @@ class Receipt {
       isElectronicReceipt: json['isElectronicReceipt'] ?? false,
       issuer: Issuer.fromJson(json['issuer'] ?? {}),
       invoiceNumber: json['invoiceNumber'],
+      taxRate: (json['taxRate'] ?? 0.10).toDouble(),
       timestamp: DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
       date: DateTime.parse(json['date'] ?? DateTime.now().toIso8601String()),
     );
@@ -81,6 +82,7 @@ class Receipt {
       'isElectronicReceipt': isElectronicReceipt,
       'issuer': issuer.toJson(),
       'invoiceNumber': invoiceNumber,
+      'taxRate': taxRate,
       'timestamp': timestamp.toIso8601String(),
       'date': date.toIso8601String(),
     };
