@@ -13,9 +13,8 @@
     <!-- Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://accounts.google.com;
-        connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://firestore.googleapis.com;
-        frame-src 'self' https://accounts.google.com https://*.firebaseapp.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval';
+        connect-src 'self' https://zipcloud.ibsnet.co.jp;
         style-src 'self' 'unsafe-inline';
         img-src 'self' data: https: http:;
         font-src 'self' data:;
@@ -368,6 +367,14 @@
             margin-top: 20px;
         }
 
+        /* 右側の印影・印紙枠の縦配置用 */
+        .stamp-box {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+
         .action-btn {
             flex: 1;
             padding: 12px;
@@ -470,6 +477,10 @@
             .receipt-preview * {
                 visibility: visible;
             }
+            /* プレビュー見出しは印刷しない */
+            .receipt-preview h2 { 
+                display: none !important; 
+            }
             
             .container {
                 max-width: none;
@@ -484,6 +495,7 @@
             .form-group,
             .generate-btn,
             .action-buttons,
+            .preview-actions,
             form {
                 display: none !important;
             }
@@ -502,30 +514,55 @@
             
             .receipt {
                 width: 210mm;
-                min-height: 297mm;
+                height: auto;
+                min-height: unset;
                 margin: 0 auto;
-                padding: 20mm;
+                padding: 16mm;
                 box-sizing: border-box;
                 box-shadow: none;
                 border-radius: 0;
                 background: white;
-                font-size: 12pt;
+                font-size: 11pt;
+                line-height: 1.45;
+                break-inside: avoid;
+                page-break-inside: avoid;
+                page-break-after: avoid;
+            }
+            /* 外枠の薄い線を完全に消す */
+            .receipt, .receipt-content, .receipt-preview {
+                border: none !important;
+                box-shadow: none !important;
+                outline: none !important;
+            }
+            .receipt-content { border: none !important; }
+            .receipt-title { margin-bottom: 12px !important; }
+            .receipt-header { margin-bottom: 12px !important; align-items: flex-start !important; }
+            .customer-section { margin-bottom: 12px !important; }
+            .receipt-info { margin-bottom: 0 !important; }
+            .receipt-row { margin-bottom: 6px !important; padding: 2px 0 !important; }
+            .receipt-row.total { padding-top: 8px !important; }
+            /* 印刷時は文字色を濃く、色調を維持 */
+            .receipt, .receipt * {
+                color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             
+            .stamp-box { align-items: flex-end !important; }
             .hanko-img {
-                position: absolute !important;
-                left: 80% !important;
-                bottom: -18px !important;
+                position: static !important;
                 width: 80px !important;
                 height: 80px !important;
                 object-fit: contain !important;
-                opacity: 0.85 !important;
+                opacity: 1 !important;
                 pointer-events: none !important;
                 visibility: visible !important;
+                display: block !important;
+                margin-left: auto !important;
             }
             
             .inshi-fuyou {
-                width: 52px !important;
+                min-width: 64px !important;
                 height: 52px !important;
                 border: 2px solid #333 !important;
                 padding: 0 !important;
@@ -537,21 +574,25 @@
                 visibility: visible !important;
             }
             
-            .inshi-text {
-                font-size: 8px !important;
-                margin: 0 !important;
-                line-height: 1.05 !important;
-                text-align: center !important;
-                visibility: visible !important;
-            }
-            
-            .inshi-main {
-                font-size: 11px !important;
-                font-weight: bold !important;
-                margin: 0 !important;
-                text-align: center !important;
-                visibility: visible !important;
-            }
+        .inshi-text {
+            font-size: 8px !important;
+            margin: 0 !important;
+            line-height: 1.05 !important;
+            text-align: center !important;
+            visibility: visible !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+        }
+        
+        .inshi-main {
+            font-size: 11px !important;
+            font-weight: bold !important;
+            margin: 0 !important;
+            text-align: center !important;
+            visibility: visible !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+        }
             
             /* 印刷時のフッター・ヘッダーを非表示 */
             @page {
@@ -793,7 +834,7 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 20px;
-            background: #f9f9f9;
+            background: #ffffff;
             margin-bottom: 20px;
         }
         .login-btn {
@@ -834,16 +875,7 @@
         <div class="header">
             <h1>📄 領収書発行システム</h1>
             <p>インボイス対応・消費税自動計算</p>
-            <div id="userInfo" style="display: none; align-items: center; gap: 10px;">
-                <img id="userPhoto" src="" alt="ユーザー写真" style="width: 32px; height: 32px; border-radius: 50%;">
-                <span id="userName" style="color: white; font-size: 14px;"></span>
-                <button id="logoutBtn" class="logout-btn" onclick="signOutUser()">ログアウト</button>
-            </div>
-            <div id="loginButton" style="display: block;">
-                <button id="loginBtn" class="login-btn" onclick="signInWithGoogle()">
-                    🔐 Googleでログイン
-                </button>
-            </div>
+            
             <div id="installButton" style="display: none; margin-top: 10px;">
                 <button id="installBtn" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; cursor: pointer;">
                     📱 ホーム画面に追加
@@ -995,8 +1027,8 @@
                     </div>
                     <div class="form-group">
                         <label for="issuerPostalCode">郵便番号</label>
-                        <input type="text" id="issuerPostalCode" pattern="\d{3}-?\d{4}" placeholder="例: 123-4567" onblur="searchAddress()">
-                        <small style="color: #666; font-size: 12px;">郵便番号を入力すると住所が自動入力されます</small>
+                        <input type="text" id="issuerPostalCode" pattern="\d{3}-?\d{4}" placeholder="例: 123-4567 または 1234567" maxlength="8">
+                        <small style="color: #666; font-size: 12px;">7桁の郵便番号を入力すると住所が自動入力されます（ハイフンは自動で除去）</small>
                     </div>
                     <div class="form-group">
                         <label for="issuerAddress">住所</label>
@@ -1023,7 +1055,9 @@
             
             <!-- 発行者一覧 -->
             <div class="form-section">
-                <h3>登録済み発行者一覧</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>登録済み発行者一覧</h3>
+                </div>
                 <div id="issuerList">
                     <!-- 発行者リストがここに表示されます -->
                 </div>

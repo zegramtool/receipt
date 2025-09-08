@@ -14,8 +14,15 @@ document.addEventListener('DOMContentLoaded', function() {
     loadIssuers();
     loadHistory();
     
-    // 発行者選択リストの更新
+    // 発行者データが空の場合はデフォルトデータを復元
+    if (issuers.length === 0) {
+        console.log('初期化時：発行者データが空のため復元します');
+        restoreDefaultIssuer();
+    }
+    
+    // 発行者選択リスト・一覧の更新
     updateIssuerSelect();
+    updateIssuerList();
     
     // 履歴リストの更新
     updateHistoryList();
@@ -26,34 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初期計算
     calculateTax();
     
-    // 発行者選択時のイベントハンドラー（インボイス番号自動入力）
-    const issuerSelect = document.getElementById('issuerSelect');
-    if (issuerSelect) {
-        issuerSelect.addEventListener('change', function() {
-            const selectedIssuerId = parseInt(this.value);
-            console.log('発行者選択:', selectedIssuerId);
-            
-            if (selectedIssuerId && issuers) {
-                const selectedIssuer = issuers.find(issuer => issuer.id === selectedIssuerId);
-                if (selectedIssuer && selectedIssuer.invoiceNumber) {
-                    const invoiceInput = document.getElementById('invoiceNumber');
-                    if (invoiceInput) {
-                        invoiceInput.value = selectedIssuer.invoiceNumber;
-                        console.log('インボイス番号を自動入力しました:', selectedIssuer.invoiceNumber);
-                    }
-                } else {
-                    console.log('選択された発行者のインボイス番号が見つかりません:', selectedIssuer);
-                }
-            } else if (selectedIssuerId === '') {
-                // 発行者選択をクリアした場合、インボイス番号もクリア
-                const invoiceInput = document.getElementById('invoiceNumber');
-                if (invoiceInput) {
-                    invoiceInput.value = '';
-                    console.log('インボイス番号をクリアしました');
-                }
-            }
-        });
-    }
+    // 発行者選択システムを初期化
+    initIssuerSelection();
     
     // フォームのsubmitイベントを設定
     const receiptForm = document.getElementById('receiptForm');
@@ -65,6 +46,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (issuerForm) {
         issuerForm.addEventListener('submit', handleIssuerFormSubmit);
     }
+    
+    // 郵便番号自動入力機能を初期化
+    initPostalCodeLookup();
     
     // ローカルストレージ版の初期化
     console.log('ローカルストレージ版として初期化中...');
@@ -82,6 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('初期化完了 - 認証なしローカルストレージ版');
+
+    // プレビュー入力連動
+    initPreviewBinding();
+    updatePreview();
 });
 
 // 自動フィールド設定
@@ -91,6 +79,10 @@ function setAutoFields() {
     const dateInput = document.getElementById('date');
     if (dateInput) {
         dateInput.value = today.toISOString().split('T')[0];
+    }
+    const todayDateEl = document.getElementById('todayDate');
+    if (todayDateEl) {
+        todayDateEl.textContent = today.toLocaleDateString('ja-JP');
     }
     
     // 領収書番号を自動生成（YYYYMMDD-HHMMSS形式）
@@ -111,12 +103,24 @@ function setAutoFields() {
 
 // 税額計算
 function calculateTax() {
-    const productAmount = parseFloat(document.getElementById('productAmount').value) || 0;
-    const shippingAmount = parseFloat(document.getElementById('shippingAmount').value) || 0;
-    const isElectronicReceipt = document.getElementById('isElectronicReceipt').checked;
-    
+    // フォーム要素の存在確認（HTMLの実態に合わせてフォールバック）
+    const productAmountEl = document.getElementById('productAmount') || document.getElementById('amount');
+    const shippingAmountEl = document.getElementById('shippingAmount'); // ない場合は0扱い
+    const isElectronicReceiptEl = document.getElementById('isElectronicReceipt');
+    const taxRateEl = document.getElementById('taxRate');
+
+    if (!productAmountEl || !isElectronicReceiptEl) {
+        console.log('calculateTax: 必要な要素が見つかりません');
+        return;
+    }
+
+    const productAmount = parseFloat(productAmountEl.value) || 0;
+    const shippingAmount = shippingAmountEl ? (parseFloat(shippingAmountEl.value) || 0) : 0;
+    const isElectronicReceipt = isElectronicReceiptEl.checked;
+    const taxRate = taxRateEl ? (parseFloat(taxRateEl.value) || 0.1) : 0.1;
+
     const subtotal = productAmount + shippingAmount;
-    const taxAmount = Math.floor(subtotal * 0.1); // 消費税10%、小数点切り捨て
+    const taxAmount = Math.floor(subtotal * taxRate); // 小数点切り捨て
     const totalWithTax = subtotal + taxAmount;
     
     // 印紙税計算（電子領収書は不要）
@@ -131,17 +135,26 @@ function calculateTax() {
         else if (totalWithTax >= 50000) stampDuty = 200;
     }
     
-    // 結果を表示
-    document.getElementById('subtotalDisplay').textContent = subtotal.toLocaleString();
-    document.getElementById('taxDisplay').textContent = taxAmount.toLocaleString();
-    document.getElementById('totalDisplay').textContent = totalWithTax.toLocaleString();
-    document.getElementById('stampDutyDisplay').textContent = stampDuty.toLocaleString();
+    // 結果表示要素の存在確認
+    // 画面上の表示要素（index.htmlのIDに合わせる）
+    const subtotalDisplayEl = document.getElementById('productTotal');
+    const taxDisplayEl = document.getElementById('taxAmount');
+    const totalDisplayEl = document.getElementById('totalAmount');
+    // const stampDutyDisplayEl = document.getElementById('stampDutyDisplay'); // 未使用
+    
+    // 結果を表示（要素が存在する場合のみ）
+    if (subtotalDisplayEl) subtotalDisplayEl.textContent = `¥${subtotal.toLocaleString()}`;
+    if (taxDisplayEl) taxDisplayEl.textContent = `¥${taxAmount.toLocaleString()}`;
+    if (totalDisplayEl) totalDisplayEl.textContent = `¥${totalWithTax.toLocaleString()}`;
+    // if (stampDutyDisplayEl) stampDutyDisplayEl.textContent = stampDuty.toLocaleString();
     
     // 印紙税行の表示/非表示
-    const stampRow = document.getElementById('stampDutyRow');
-    if (stampRow) {
-        stampRow.style.display = stampDuty > 0 ? 'table-row' : 'none';
-    }
+    // 印紙税表示行は現在のUIにはないため何もしない
+}
+
+// 印紙税トグル（HTMLから呼ばれる）
+function toggleStampDuty() {
+    calculateTax();
 }
 
 // 領収書フォーム送信処理
@@ -167,13 +180,18 @@ function handleReceiptFormSubmit(event) {
 function createPDF() {
     const customerName = document.getElementById('customerName').value;
     const customerType = document.getElementById('customerType').value;
-    const productAmount = parseFloat(document.getElementById('productAmount').value) || 0;
-    const shippingAmount = parseFloat(document.getElementById('shippingAmount').value) || 0;
+    const amountEl = document.getElementById('productAmount') || document.getElementById('amount');
+    const productAmount = amountEl ? (parseFloat(amountEl.value) || 0) : 0;
+    const shippingAmountEl = document.getElementById('shippingAmount');
+    const shippingAmount = shippingAmountEl ? (parseFloat(shippingAmountEl.value) || 0) : 0;
     const description = document.getElementById('description').value;
+    const inputInvoiceNumber = document.getElementById('invoiceNumber')?.value || '';
     const receiptNumber = document.getElementById('receiptNumber').value;
     const date = document.getElementById('date').value;
     const isElectronicReceipt = document.getElementById('isElectronicReceipt').checked;
     const selectedIssuerId = document.getElementById('issuerSelect').value;
+    const taxRateEl = document.getElementById('taxRate');
+    const taxRate = taxRateEl ? (parseFloat(taxRateEl.value) || 0.1) : 0.1;
     
     const selectedIssuer = issuers.find(issuer => issuer.id == selectedIssuerId);
     
@@ -187,7 +205,9 @@ function createPDF() {
         date,
         isElectronicReceipt,
         issuer: selectedIssuer,
-        timestamp: new Date().toISOString()
+        invoiceNumber: inputInvoiceNumber,
+        timestamp: new Date().toISOString(),
+        taxRate
     };
     
     // 履歴に保存
@@ -195,17 +215,16 @@ function createPDF() {
     saveHistory();
     updateHistoryList();
     
-    // 領収書HTMLを生成
-    const receiptHTML = generateReceipt(receiptData);
-    
-    // 新しいウィンドウで表示して印刷
-    printReceipt(receiptHTML);
+    // プレビューに反映して同一ページ印刷（レイアウト統一）
+    renderPreviewWithData(receiptData);
+    window.print();
 }
 
 // 領収書HTML生成
 function generateReceipt(data) {
     const subtotal = data.productAmount + data.shippingAmount;
-    const taxAmount = Math.floor(subtotal * 0.1);
+    const taxRate = typeof data.taxRate === 'number' ? data.taxRate : 0.1;
+    const taxAmount = Math.floor(subtotal * taxRate);
     const totalWithTax = subtotal + taxAmount;
     
     let stampDuty = 0;
@@ -349,7 +368,7 @@ function generateReceipt(data) {
                         <span>¥${subtotal.toLocaleString()}</span>
                     </div>
                     <div class="amount-row">
-                        <span>消費税 (10%):</span>
+                        <span>消費税 (${(taxRate * 100).toFixed(0)}%):</span>
                         <span>¥${taxAmount.toLocaleString()}</span>
                     </div>
                     ${stampDuty > 0 ? `
@@ -370,19 +389,15 @@ function generateReceipt(data) {
                     <div><strong>${data.issuer.name}</strong></div>
                     <div>〒${data.issuer.postalCode}</div>
                     <div>${data.issuer.address}</div>
-                    <div>TEL: ${data.issuer.phone}</div>
-                    ${data.issuer.invoiceNumber ? `<div>インボイス番号: ${data.issuer.invoiceNumber}</div>` : ''}
+                    ${data.issuer.phone ? `<div>TEL: ${data.issuer.phone}</div>` : ''}
+                    ${ (data.invoiceNumber || data.issuer.invoiceNumber) ? `<div>インボイス番号: ${data.invoiceNumber || data.issuer.invoiceNumber}</div>` : ''}
                 </div>
                 <div class="stamp-area">
-                    印
+                    ${data.issuer && data.issuer.hankoImage ? `<img src="${data.issuer.hankoImage}" alt="印影" style="width:76px;height:76px;object-fit:contain;opacity:1;border-radius:50%;">` : '印'}
                 </div>
             </div>
             
-            <div class="footer">
-                ${data.isElectronicReceipt ? 'この領収書は電子領収書です（印紙税不要）' : ''}
-                <br>
-                領収書発行アプリ で作成
-            </div>
+            
         </div>
         
         <script>
@@ -400,52 +415,259 @@ function generateReceipt(data) {
 }
 
 // 領収書印刷
-function printReceipt(html) {
-    const printWindow = window.open('', '_blank', 'width=800,height=900');
-    if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-    } else {
-        alert('ポップアップがブロックされました。ブラウザの設定を確認してください。');
-    }
+function printReceipt() {
+    // 現在のフォーム値でプレビューを最新化して、そのまま印刷
+    updatePreview();
+    window.print();
+}
+
+// 入力リセット（新規作成）
+function createNew() {
+    const form = document.getElementById('receiptForm');
+    if (form) form.reset();
+    setAutoFields();
+    calculateTax();
+    const preview = document.getElementById('receiptPreview');
+    if (preview) preview.style.display = 'none';
+}
+
+// 郵便番号自動入力システム
+function initPostalCodeLookup() {
+    console.log('🏣 郵便番号自動入力システムを初期化中...');
+    
+    // 確実にDOM要素を取得
+    setTimeout(() => {
+        const postalCodeInput = document.getElementById('issuerPostalCode');
+        const addressInput = document.getElementById('issuerAddress');
+        
+        console.log('郵便番号フィールド:', postalCodeInput);
+        console.log('住所フィールド:', addressInput);
+        
+        if (!postalCodeInput) {
+            console.error('❌ 郵便番号入力フィールド(issuerPostalCode)が見つかりません');
+            return;
+        }
+        
+        if (!addressInput) {
+            console.error('❌ 住所入力フィールド(issuerAddress)が見つかりません');
+            return;
+        }
+        
+        console.log('✅ 両方のフィールドが見つかりました');
+        
+        // 住所検索実行関数
+        async function searchAddress() {
+            const postalCode = postalCodeInput.value.trim();
+            console.log('🔍 住所検索実行:', postalCode);
+            
+            if (!postalCode) {
+                console.log('郵便番号が空です');
+                return;
+            }
+            
+            // 数字のみ抽出
+            const cleanCode = postalCode.replace(/[^0-9]/g, '');
+            
+            if (cleanCode.length !== 7) {
+                console.log(`郵便番号は7桁である必要があります。現在: ${cleanCode.length}桁`);
+                showFeedback(postalCodeInput, 'error');
+                return;
+            }
+            
+            try {
+                console.log('API呼び出し:', cleanCode);
+                const url = `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleanCode}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('API応答:', data);
+                
+                if (data.status === 200 && data.results && data.results.length > 0) {
+                    const result = data.results[0];
+                    const fullAddress = `${result.address1}${result.address2}${result.address3}`;
+                    
+                    // 住所フィールドが空の場合のみ入力
+                    if (!addressInput.value.trim()) {
+                        addressInput.value = fullAddress;
+                        console.log('✅ 住所自動入力成功:', fullAddress);
+                        showFeedback(addressInput, 'success');
+                    } else {
+                        console.log('住所が既に入力されているため、上書きしませんでした');
+                    }
+                } else {
+                    console.log('❌ 住所が見つかりませんでした');
+                    showFeedback(postalCodeInput, 'error');
+                }
+            } catch (error) {
+                console.error('住所検索エラー:', error);
+                showFeedback(postalCodeInput, 'error');
+            }
+        }
+        
+        // 視覚的フィードバック
+        function showFeedback(element, type) {
+            const color = type === 'success' ? '#28a745' : '#dc3545';
+            element.style.borderColor = color;
+            element.style.borderWidth = '2px';
+            
+            setTimeout(() => {
+                element.style.borderColor = '';
+                element.style.borderWidth = '';
+            }, 2000);
+        }
+        
+        // イベントリスナー設定
+        postalCodeInput.addEventListener('blur', searchAddress);
+        
+        postalCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchAddress();
+            }
+        });
+        
+        console.log('✅ 郵便番号自動入力システム初期化完了');
+        
+    }, 100); // DOM構築完了を待つ
+}
+
+// 発行者選択システム
+function initIssuerSelection() {
+    console.log('👥 発行者選択システムを初期化中...');
+    
+    setTimeout(() => {
+        const issuerSelect = document.getElementById('issuerSelect');
+        const invoiceNumberInput = document.getElementById('invoiceNumber');
+        
+        console.log('発行者選択フィールド:', issuerSelect);
+        console.log('インボイス番号フィールド:', invoiceNumberInput);
+        
+        if (!issuerSelect) {
+            console.error('❌ 発行者選択フィールド(issuerSelect)が見つかりません');
+            return;
+        }
+        
+        // 発行者選択時の処理
+        issuerSelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            console.log('🏢 発行者選択変更:', selectedValue);
+            
+            try {
+                if (!selectedValue || selectedValue === '') {
+                    // 選択解除の場合
+                    if (invoiceNumberInput) {
+                        invoiceNumberInput.value = '';
+                        console.log('インボイス番号をクリアしました');
+                    }
+                    return;
+                }
+                
+                const selectedId = parseInt(selectedValue);
+                if (isNaN(selectedId)) {
+                    console.log('無効な発行者IDです:', selectedValue);
+                    return;
+                }
+                
+                // 発行者データから該当するものを検索
+                console.log('発行者データ:', issuers);
+                const selectedIssuer = issuers.find(issuer => issuer.id === selectedId);
+                
+                if (selectedIssuer) {
+                    console.log('✅ 発行者見つかりました:', selectedIssuer.name);
+                    
+                    // インボイス番号の自動入力
+                    if (invoiceNumberInput && selectedIssuer.invoiceNumber) {
+                        if (!invoiceNumberInput.value) {
+                            invoiceNumberInput.value = selectedIssuer.invoiceNumber;
+                            console.log('✅ インボイス番号自動入力:', selectedIssuer.invoiceNumber);
+                        } else {
+                            console.log('インボイス番号は既に入力済みのため上書きしません');
+                        }
+                    }
+                } else {
+                    console.log('❌ 選択された発行者が見つかりません ID:', selectedId);
+                    console.log('利用可能な発行者一覧:', issuers.map(i => `ID:${i.id} 名前:${i.name}`));
+                }
+                
+            } catch (error) {
+                console.error('💥 発行者選択処理でエラー:', error);
+                console.error('エラー詳細:', error.message);
+                console.error('スタック:', error.stack);
+            }
+            // プレビュー更新
+            updatePreview();
+        });
+        
+        console.log('✅ 発行者選択システム初期化完了');
+        
+    }, 100);
 }
 
 // 発行者フォーム送信処理
 function handleIssuerFormSubmit(event) {
     event.preventDefault();
-    
-    const formData = new FormData(event.target);
     const editingIndex = parseInt(document.getElementById('editingIssuerIndex').value);
-    
-    const issuerData = {
+
+    const name = (document.getElementById('issuerName')?.value || '').trim();
+    const postalCode = (document.getElementById('issuerPostalCode')?.value || '').trim();
+    const address = (document.getElementById('issuerAddress')?.value || '').trim();
+    const phone = (document.getElementById('issuerPhone')?.value || '').trim();
+    const invoiceNumber = (document.getElementById('issuerInvoiceNumber')?.value || '').trim();
+
+    const fileInput = document.getElementById('hankoImageFile');
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+    const baseData = {
         id: editingIndex >= 0 ? issuers[editingIndex].id : Date.now(),
-        name: formData.get('name'),
-        postalCode: formData.get('postalCode'),
-        address: formData.get('address'),
-        phone: formData.get('phone'),
-        invoiceNumber: formData.get('invoiceNumber'),
-        hankoImage: "icons/sample-hanko.png"
+        name,
+        postalCode,
+        address,
+        phone,
+        invoiceNumber,
+        hankoImage: editingIndex >= 0 ? (issuers[editingIndex].hankoImage || 'icons/sample-hanko.png') : 'icons/sample-hanko.png'
     };
-    
-    if (editingIndex >= 0) {
-        issuers[editingIndex] = issuerData;
+
+    const finalize = (issuerData) => {
+        if (editingIndex >= 0) {
+            issuers[editingIndex] = issuerData;
+        } else {
+            issuers.push(issuerData);
+        }
+        saveIssuers();
+        updateIssuerSelect();
+        updateIssuerList();
+        resetIssuerForm();
+        updatePreview();
+        const message = editingIndex >= 0 ? '発行者を更新しました' : '発行者を登録しました';
+        alert(message);
+    };
+
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = () => finalize({ ...baseData, hankoImage: reader.result });
+        reader.onerror = () => {
+            console.error('印影画像の読み込みに失敗しました');
+            finalize(baseData);
+        };
+        reader.readAsDataURL(file);
     } else {
-        issuers.push(issuerData);
+        finalize(baseData);
     }
-    
-    saveIssuers();
-    updateIssuerSelect();
-    updateIssuerList();
-    resetIssuerForm();
-    
-    const message = editingIndex >= 0 ? '発行者を更新しました' : '発行者を登録しました';
-    alert(message);
 }
 
 // 発行者フォームリセット
 function resetIssuerForm() {
     document.getElementById('issuerForm').reset();
     document.getElementById('editingIssuerIndex').value = '-1';
+}
+
+// 発行者編集キャンセル
+function cancelEdit() {
+    resetIssuerForm();
 }
 
 // 発行者編集
@@ -470,6 +692,7 @@ function deleteIssuer(index) {
         saveIssuers();
         updateIssuerSelect();
         updateIssuerList();
+        updatePreview();
         alert('発行者を削除しました');
     }
 }
@@ -500,7 +723,7 @@ function switchTab(tabName) {
     
     // 領収書タブの場合、自動計算を実行
     if (tabName === 'receipt') {
-        setTimeout(calculateTax, 100);
+        setTimeout(() => { calculateTax(); updatePreview(); }, 100);
     }
 }
 
@@ -513,9 +736,13 @@ function loadIssuers() {
         } catch (e) {
             console.error('発行者データの読み込みエラー:', e);
             issuers = getDefaultIssuers();
+            // 破損時はデフォルトを書き戻す
+            try { saveIssuers(); } catch (_) {}
         }
     } else {
         issuers = getDefaultIssuers();
+        // 初回はローカルストレージに保存
+        try { saveIssuers(); } catch (_) {}
     }
 }
 
@@ -555,18 +782,95 @@ function getDefaultIssuers() {
     ];
 }
 
+// サンプルデータ復元機能
+function restoreDefaultIssuer() {
+    console.log('🔄 サンプルデータ復元機能を実行');
+    console.log('現在の発行者数:', issuers.length);
+    
+    try {
+        // 常にデフォルトサンプルを追加（重複チェック）
+        const defaultIssuers = getDefaultIssuers();
+        let addedCount = 0;
+        
+        defaultIssuers.forEach(defaultIssuer => {
+            // IDが重複していないかチェック
+            const exists = issuers.some(issuer => issuer.id === defaultIssuer.id);
+            if (!exists) {
+                issuers.push({...defaultIssuer}); // オブジェクトのコピーを追加
+                addedCount++;
+            }
+        });
+        
+        if (addedCount > 0) {
+            console.log(`✅ ${addedCount}件のデフォルト発行者を追加しました`);
+            saveIssuers();
+            updateIssuerSelect();
+            updateIssuerList();
+            updatePreview();
+            
+            alert(`サンプル発行者を${addedCount}件復元しました！`);
+            return true;
+        } else {
+            console.log('📝 すべてのデフォルト発行者は既に存在します');
+            alert('サンプル発行者は既に存在します');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('💥 サンプルデータ復元でエラー:', error);
+        alert('サンプルデータの復元に失敗しました');
+        return false;
+    }
+}
+
 // UI更新機能
 function updateIssuerSelect() {
-    const select = document.getElementById('issuerSelect');
-    if (select) {
+    console.log('🔄 発行者選択リストを更新中...');
+    
+    try {
+        const select = document.getElementById('issuerSelect');
+        if (!select) {
+            console.error('❌ 発行者選択フィールドが見つかりません');
+            return;
+        }
+        
+        // 現在の選択を保存
+        const currentValue = select.value;
+        
+        // リストをクリアして初期オプションを追加
         select.innerHTML = '<option value="">発行者を選択してください</option>';
         
-        issuers.forEach(issuer => {
-            const option = document.createElement('option');
-            option.value = issuer.id;
-            option.textContent = issuer.name;
-            select.appendChild(option);
-        });
+        // 発行者データが存在する場合のみ処理
+        if (issuers && issuers.length > 0) {
+            console.log(`📋 ${issuers.length}件の発行者をリストに追加中...`);
+            
+            issuers.forEach((issuer, index) => {
+                try {
+                    const option = document.createElement('option');
+                    option.value = issuer.id;
+                    option.textContent = issuer.name || `発行者${index + 1}`;
+                    select.appendChild(option);
+                    console.log(`  ✓ ${issuer.name} (ID: ${issuer.id})`);
+                } catch (error) {
+                    console.error(`発行者${index}の追加でエラー:`, error);
+                }
+            });
+            
+            // 以前の選択を復元（存在する場合）
+            if (currentValue) {
+                select.value = currentValue;
+                if (select.value !== currentValue) {
+                    console.log(`以前の選択 ${currentValue} は存在しないため、選択をクリアしました`);
+                }
+            }
+            
+            console.log('✅ 発行者選択リスト更新完了');
+        } else {
+            console.log('📭 発行者データが空です');
+        }
+        
+    } catch (error) {
+        console.error('💥 発行者選択リスト更新でエラー:', error);
     }
 }
 
@@ -590,8 +894,9 @@ function updateIssuerList() {
                 <h3>${issuer.name}</h3>
                 <p>〒${issuer.postalCode}</p>
                 <p>${issuer.address}</p>
-                <p>TEL: ${issuer.phone}</p>
+                ${issuer.phone ? `<p>TEL: ${issuer.phone}</p>` : ''}
                 ${issuer.invoiceNumber ? `<p class="invoice-number">インボイス: ${issuer.invoiceNumber}</p>` : ''}
+                ${issuer.hankoImage ? `<div class="hanko-preview" style="margin-top:8px;"><img src="${issuer.hankoImage}" alt="印影" width="48" height="48" /></div>` : ''}
             </div>
             <div class="issuer-actions">
                 <button onclick="editIssuer(${index})" class="edit-btn">編集</button>
@@ -619,7 +924,8 @@ function updateHistoryList() {
         historyItem.className = 'history-item';
         
         const subtotal = (receipt.productAmount || 0) + (receipt.shippingAmount || 0);
-        const taxAmount = Math.floor(subtotal * 0.1);
+        const rate = typeof receipt.taxRate === 'number' ? receipt.taxRate : 0.1;
+        const taxAmount = Math.floor(subtotal * rate);
         const totalWithTax = subtotal + taxAmount;
         const date = new Date(receipt.timestamp || receipt.date).toLocaleDateString('ja-JP');
         
@@ -645,8 +951,8 @@ function updateHistoryList() {
 function reprintReceipt(index) {
     const receipt = receiptHistory[index];
     if (receipt) {
-        const receiptHTML = generateReceipt(receipt);
-        printReceipt(receiptHTML);
+        renderPreviewWithData(receipt);
+        window.print();
     }
 }
 
@@ -656,4 +962,133 @@ function deleteHistory(index) {
         saveHistory();
         updateHistoryList();
     }
+}
+
+// 履歴全クリア
+function clearHistory() {
+    if (confirm('全ての履歴を削除しますか？この操作は元に戻せません。')) {
+        receiptHistory = [];
+        saveHistory();
+        updateHistoryList();
+    }
+}
+
+// プレビューのイベント連動
+function initPreviewBinding() {
+    const ids = [
+        'customerName', 'customerType', 'amount', 'productAmount', 'shippingAmount',
+        'description', 'receiptNumber', 'date', 'isElectronicReceipt',
+        'issuerSelect', 'taxRate', 'invoiceNumber'
+    ];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', updatePreview);
+        el.addEventListener('change', updatePreview);
+    });
+}
+
+// プレビュー更新
+function updatePreview() {
+    const previewWrap = document.getElementById('receiptPreview');
+    const container = document.getElementById('receiptContent');
+    if (!previewWrap || !container) return;
+
+    const amountEl = document.getElementById('productAmount') || document.getElementById('amount');
+    const productAmount = amountEl ? (parseFloat(amountEl.value) || 0) : 0;
+    const shippingAmountEl = document.getElementById('shippingAmount');
+    const shippingAmount = shippingAmountEl ? (parseFloat(shippingAmountEl.value) || 0) : 0;
+    const taxRateEl = document.getElementById('taxRate');
+    const taxRate = taxRateEl ? (parseFloat(taxRateEl.value) || 0.1) : 0.1;
+
+    const data = {
+        customerName: document.getElementById('customerName')?.value || '',
+        customerType: document.getElementById('customerType')?.value || '様',
+        productAmount,
+        shippingAmount,
+        description: document.getElementById('description')?.value || '',
+        receiptNumber: document.getElementById('receiptNumber')?.value || '',
+        date: document.getElementById('date')?.value || new Date().toISOString().split('T')[0],
+        isElectronicReceipt: document.getElementById('isElectronicReceipt')?.checked || false,
+        issuer: (() => {
+            const id = document.getElementById('issuerSelect')?.value;
+            return issuers.find(i => String(i.id) === String(id));
+        })(),
+        invoiceNumber: document.getElementById('invoiceNumber')?.value || '',
+        taxRate
+    };
+
+    // 必須が揃っていない場合は非表示
+    if (!data.issuer || !data.customerName) {
+        previewWrap.style.display = 'none';
+        return;
+    }
+
+    container.innerHTML = generateReceiptPreviewHtml(data);
+    previewWrap.style.display = 'block';
+}
+
+// 明示データでプレビューを描画
+function renderPreviewWithData(data) {
+    const previewWrap = document.getElementById('receiptPreview');
+    const container = document.getElementById('receiptContent');
+    if (!previewWrap || !container) return;
+    container.innerHTML = generateReceiptPreviewHtml(data);
+    previewWrap.style.display = 'block';
+    // 領収書タブへ切替
+    try { switchTab('receipt'); } catch (_) {}
+}
+
+// プレビュー用のHTML生成（indexのスタイルに合わせる）
+function generateReceiptPreviewHtml(data) {
+    const subtotal = (data.productAmount || 0) + (data.shippingAmount || 0);
+    const rate = typeof data.taxRate === 'number' ? data.taxRate : 0.1;
+    const taxAmount = Math.floor(subtotal * rate);
+    const totalWithTax = subtotal + taxAmount;
+    const formattedDate = new Date(data.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // 印紙税計算（電子発行なら不要）
+    let stampDuty = 0;
+    if (!data.isElectronicReceipt) {
+        if (totalWithTax >= 50000000) stampDuty = 600;
+        else if (totalWithTax >= 10000000) stampDuty = 400;
+        else if (totalWithTax >= 5000000) stampDuty = 200;
+        else if (totalWithTax >= 1000000) stampDuty = 200;
+        else if (totalWithTax >= 500000) stampDuty = 200;
+        else if (totalWithTax >= 100000) stampDuty = 200;
+        else if (totalWithTax >= 50000) stampDuty = 200;
+    }
+
+    const inshiBox = data.isElectronicReceipt
+        ? `<div class="inshi-fuyou"><p class="inshi-text">電子発行のため</p><p class="inshi-main">印紙税不要</p></div>`
+        : `<div class="inshi-fuyou"><p class="inshi-text">収入印紙</p><p class="inshi-main">¥${stampDuty.toLocaleString()}</p></div>`;
+
+    return `
+    <div class="receipt fade-in">
+        <div class="receipt-title">領収書</div>
+        <div class="customer-section">
+            ${data.customerName} ${data.customerType}
+        </div>
+        <div class="receipt-info">
+            <div class="receipt-row"><span>発行日:</span><span>${formattedDate}</span></div>
+            <div class="receipt-row"><span>領収書番号:</span><span>${data.receiptNumber}</span></div>
+            <div class="receipt-row"><span>但し:</span><span>${data.description}</span></div>
+            <div class="receipt-row"><span>小計:</span><span>¥${subtotal.toLocaleString()}</span></div>
+            <div class="receipt-row"><span>消費税 (${(rate*100).toFixed(0)}%):</span><span>¥${taxAmount.toLocaleString()}</span></div>
+            <div class="receipt-row total"><span>合計:</span><span>¥${totalWithTax.toLocaleString()}</span></div>
+        </div>
+        <div class="receipt-header">
+            <div class="issuer-info">
+                <div><strong>${data.issuer.name}</strong></div>
+                <div>〒${data.issuer.postalCode}</div>
+                <div>${data.issuer.address}</div>
+                ${data.issuer.phone ? `<div>TEL: ${data.issuer.phone}</div>` : ''}
+                ${(data.invoiceNumber || data.issuer.invoiceNumber) ? `<div>インボイス番号: ${data.invoiceNumber || data.issuer.invoiceNumber}</div>` : ''}
+            </div>
+            <div class="stamp-box">
+                ${data.issuer && data.issuer.hankoImage ? `<img class=\"hanko-img\" src=\"${data.issuer.hankoImage}\" alt=\"印影\" style=\"width:80px;height:80px;object-fit:contain;opacity:1;\">` : ''}
+                ${inshiBox}
+            </div>
+        </div>
+    </div>`;
 }
